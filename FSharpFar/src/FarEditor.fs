@@ -36,9 +36,8 @@ type MouseMessage =
 
 [<System.Runtime.InteropServices.Guid "B7916B53-2C17-4086-8F13-5FFCF0D82900">]
 [<ModuleEditor (Name = "FSharpFar", Mask = "*.fs;*.fsx;*.fsscript")>]
-type FarEditor () =
+type FarEditor (editor: IEditor, _args) =
     inherit ModuleEditor ()
-    let mutable editor: IEditor = null
 
     let checkAgent = MailboxProcessor.Start (fun inbox -> async {
         while true do
@@ -49,7 +48,7 @@ type FarEditor () =
             | Check ->
                 do! Async.Sleep 2000
                 if inbox.CurrentQueueLength = 0 then
-                    postEditorJob editor (fun () ->
+                    editor.PostJob (fun () ->
                         inbox.Post (Check2 (editor.GetText ()))
                     )
 
@@ -62,7 +61,7 @@ type FarEditor () =
                     else
                         let errors = check.CheckResults.Errors
                         if errors.Length = 0 then None else Some errors
-                postEditorJob editor (fun () ->
+                editor.PostJob (fun () ->
                     editor.Redraw ()
                 )
     })
@@ -95,7 +94,7 @@ type FarEditor () =
                     if lines.Length > 0 then
                         autoTips <- false
                         let text = String.Join ("\r", lines)
-                        postEditorJob editor (fun () ->
+                        editor.PostJob (fun () ->
                             showText text "Errors"
                         )
 
@@ -103,7 +102,7 @@ type FarEditor () =
                     match Parsing.findLongIdents (it.Column, it.Text) with
                     | None -> ()
                     | Some (column, idents) ->
-                        postEditorJob editor (fun () ->
+                        editor.PostJob (fun () ->
                             inbox.Post (Tips {Text = it.Text; Index = it.Index; Column = column; Idents = idents; FileText = editor.GetText ()})
                         )
 
@@ -113,13 +112,10 @@ type FarEditor () =
                 let! tip = check.CheckResults.GetToolTipTextAlternate (it.Index + 1, it.Column + 1, it.Text, it.Idents, FSharpTokenTag.Identifier)
                 let tips = Checker.strTip tip
                 if tips.Length > 0 && inbox.CurrentQueueLength = 0 then
-                    postEditorJob editor (fun () ->
+                    editor.PostJob (fun () ->
                         showText tips "Tips"
                     )
     })
-
-    let postNoop _ =
-        mouseAgent.Post Noop
 
 (*
     https://fsharp.github.io/FSharp.Compiler.Service/editor.html#Getting-auto-complete-lists
@@ -178,8 +174,9 @@ type FarEditor () =
         editor.Redraw ()
         true
 
-    override x.Invoke (sender, _) =
-        editor <- sender
+    let postNoop _ =  mouseAgent.Post Noop
+
+    do
         if editor.fsSession.IsNone then
 
             if isSimpleSource editor.FileName then
@@ -192,15 +189,15 @@ type FarEditor () =
                      e.Ignore <- complete ()
                 | _ -> ()
 
-            editor.Changed.Add (fun _ ->
+            editor.Changed.Add <| fun _ ->
                 editor.fsErrors <- None
                 if editor.fsAutoCheck then
                     checkAgent.Post Check
-            )
 
             editor.MouseDoubleClick.Add postNoop
             editor.MouseClick.Add postNoop
             editor.MouseWheel.Add postNoop
+
             editor.MouseMove.Add <| fun e ->
                 mouseAgent.Post (
                     if e.Mouse.Is () then

@@ -722,9 +722,9 @@ namespace FarNet
 		/// Set it before or after opening.
 		/// </summary>
 		public abstract string WordDiv { get; set; } //! see _100324_160008
-		/// <summary>
-		/// Gets the bookmark operator.
-		/// </summary>
+													 /// <summary>
+													 /// Gets the bookmark operator.
+													 /// </summary>
 		public abstract IEditorBookmark Bookmark { get; }
 		/// <summary>
 		/// Gets the opening time of the instance.
@@ -764,6 +764,17 @@ namespace FarNet
 		/// </summary>
 		/// <param name="id">The drawer ID.</param>
 		public abstract void RemoveDrawer(Guid id);
+		/// <summary>
+		/// Posts a job for this editor.
+		/// </summary>
+		/// <remarks>
+		/// Unlike <see cref="IFar.PostJob"/>, this way does not call the job if the editor is closed.
+		/// </remarks>
+		/// <param name="handler">Job handler to be posted.</param>
+		public void PostJob(Action handler)
+		{
+			Far.Api.PostJob(delegate { if (IsOpened) handler(); });
+		}
 	}
 
 	/// <summary>

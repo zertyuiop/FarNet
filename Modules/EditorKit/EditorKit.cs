@@ -13,7 +13,7 @@ public class TrimSaving : ModuleEditor
 	public const string Name = "TrimSaving";
 
 	// Called when a file is opened. It installs OnSaving().
-	public override void Invoke(IEditor editor, ModuleEditorEventArgs e)
+	public TrimSaving(IEditor editor, ModuleEditorEventArgs e)
 	{
 		editor.Saving += OnSaving;
 	}
@@ -40,7 +40,7 @@ public class TrimSaving : ModuleEditor
 [ModuleEditor(Name = "ExpandTabsAll", Mask = "*.fs;*.fsi;*.fsx;*.fsscript")]
 public class ExpandTabsAll : ModuleEditor
 {
-	public override void Invoke(IEditor editor, ModuleEditorEventArgs e)
+	public ExpandTabsAll(IEditor editor, ModuleEditorEventArgs e)
 	{
 		editor.ExpandTabs = editor.DisableHistory ? ExpandTabsMode.New : ExpandTabsMode.All;
 	}
@@ -51,7 +51,7 @@ public class ExpandTabsAll : ModuleEditor
 [ModuleEditor(Name = "ExpandTabsAll2", Mask = "*.xml;*.*proj")]
 public class ExpandTabsAll2 : ModuleEditor
 {
-	public override void Invoke(IEditor editor, ModuleEditorEventArgs e)
+	public ExpandTabsAll2(IEditor editor, ModuleEditorEventArgs e)
 	{
 		editor.ExpandTabs = editor.DisableHistory ? ExpandTabsMode.New : ExpandTabsMode.All;
 		editor.TabSize = 2;

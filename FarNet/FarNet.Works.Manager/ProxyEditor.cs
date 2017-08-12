@@ -24,14 +24,24 @@ namespace FarNet.Works
 		{
 			Init();
 		}
+#pragma warning disable CS0618
 		public void Invoke(IEditor editor, ModuleEditorEventArgs e)
 		{
 			Log.Source.TraceInformation("Invoking {0} FileName='{1}'", ClassName, editor.FileName);
 			Invoking();
 
-			ModuleEditor instance = (ModuleEditor)GetInstance();
-			instance.Invoke(editor, e);
+			var type = ResolveType();
+			try
+			{
+				Activator.CreateInstance(type, editor, e);
+			}
+			catch (MissingMethodException)
+			{
+				ModuleEditor instance = (ModuleEditor)GetInstance(); //rk obsolete way
+				instance.Invoke(editor, e);
+			}
 		}
+#pragma warning restore CS0618
 		public sealed override string ToString()
 		{
 			return string.Format(null, "{0} Mask='{1}'", base.ToString(), Mask);

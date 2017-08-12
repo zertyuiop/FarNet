@@ -503,20 +503,21 @@ namespace FarNet
 	/// </remarks>
 	public abstract class ModuleEditor : ModuleAction
 	{
-		/// <summary>
-		/// Editor <see cref="IEditorBase.Opened"/> handler.
-		/// </summary>
-		/// <param name="editor">The editor.</param>
-		/// <param name="e">The arguments.</param>
-		/// <remarks>
-		/// This method is called once on opening an editor.
-		/// Normally it adds editor event handlers, then they do the jobs.
-		/// </remarks>
-		/// <example>
-		/// See the demo module <c>EditorKit</c> and its module editor classes.
-		/// It is not just an example, it can be used for real.
-		/// </example>
-		public abstract void Invoke(IEditor editor, ModuleEditorEventArgs e);
+        /// <summary>
+        /// Editor <see cref="IEditorBase.Opened"/> handler.
+        /// </summary>
+        /// <param name="editor">The editor.</param>
+        /// <param name="e">The arguments.</param>
+        /// <remarks>
+        /// This method is called once on opening an editor.
+        /// Normally it adds editor event handlers, then they do the jobs.
+        /// </remarks>
+        /// <example>
+        /// See the demo module <c>EditorKit</c> and its module editor classes.
+        /// It is not just an example, it can be used for real.
+        /// </example>
+        [Obsolete("Use public constructor (IEditor, ModuleEditorEventArgs).")]
+        public virtual void Invoke(IEditor editor, ModuleEditorEventArgs e) { } //rk obsolete
 	}
 
 	/// <summary>
@@ -746,7 +747,7 @@ namespace FarNet
 		/// </summary>
 		/// <param name="editor">The editor.</param>
 		/// <param name="e">The arguments.</param>
-		void Invoke(IEditor editor, ModuleEditorEventArgs e);
+		void Invoke(IEditor editor, ModuleEditorEventArgs e); //rk obsolete
 		/// <summary>
 		/// Gets the file mask. Setting is for internal use.
 		/// </summary>

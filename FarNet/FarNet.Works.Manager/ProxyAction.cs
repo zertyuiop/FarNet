@@ -75,15 +75,19 @@ namespace FarNet.Works
 		{
 			get { return _Attribute; }
 		}
-		internal ModuleAction GetInstance()
+        internal Type ResolveType()
+        {
+            if (_ClassType == null)
+            {
+                _ClassType = _Manager.LoadAssembly().GetType(_ClassName, true, false);
+                _ClassName = null;
+            }
+            return _ClassType;
+        }
+        internal ModuleAction GetInstance() //rk
 		{
-			if (_ClassType == null)
-			{
-				_ClassType = _Manager.LoadAssembly().GetType(_ClassName, true, false);
-				_ClassName = null;
-			}
-
-			return (ModuleAction)ModuleManager.CreateEntry(_ClassType);
+            var type = ResolveType();
+			return (ModuleAction)ModuleManager.CreateEntry(type);
 		}
 		void Initialize()
 		{

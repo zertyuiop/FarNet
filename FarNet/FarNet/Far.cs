@@ -394,6 +394,7 @@ namespace FarNet
 		/// used to post a job that will be called from the main thread as soon as the core gets control.
 		/// The posted job can call the core as usual.
 		/// </remarks>
+		/// <seealso cref="IEditor.PostJob"/>
 		public abstract void PostJob(Action handler);
 		/// <summary>
 		/// Gets the current macro area.
