@@ -11,28 +11,15 @@ open FsAutoComplete
 open Microsoft.FSharp.Compiler.SourceCodeServices
 open System
 
-type CheckMessage =
-| Check
-| Check2 of string
-
 type LineArgs = {
     Text : string
     Index : int
     Column : int
 }
 
-type TipsArgs = {
-    Text : string
-    Index : int
-    Column : int
-    Idents : string list
-    FileText : string
-}
-
 type MouseMessage =
 | Noop
 | Move of LineArgs
-| Tips of TipsArgs
 
 [<System.Runtime.InteropServices.Guid "B7916B53-2C17-4086-8F13-5FFCF0D82900">]
 [<ModuleEditor (Name = "FSharpFar", Mask = "*.fs;*.fsx;*.fsscript")>]
@@ -41,29 +28,29 @@ type FarEditor (editor: IEditor, _args) =
 
     let checkAgent = MailboxProcessor.Start (fun inbox -> async {
         while true do
-            let! message = inbox.Receive ()
+            do! inbox.Receive ()
             if inbox.CurrentQueueLength > 0 then () else
 
-            match message with
-            | Check ->
-                do! Async.Sleep 2000
-                if inbox.CurrentQueueLength = 0 then
-                    editor.PostJob (fun () ->
-                        inbox.Post (Check2 (editor.GetText ()))
-                    )
+            do! Async.Sleep 2000
+            if inbox.CurrentQueueLength > 0 then () else
 
-            | Check2 text ->
-                let options = editor.getOptions ()
-                let check = Checker.check editor.FileName text options
-                editor.fsErrors <-
-                    if inbox.CurrentQueueLength > 0 then
-                        None
-                    else
-                        let errors = check.CheckResults.Errors
-                        if errors.Length = 0 then None else Some errors
-                editor.PostJob (fun () ->
-                    editor.Redraw ()
-                )
+            editor.PostJob (fun () ->
+                let text = editor.GetText ()
+                async {
+                    let options = editor.getOptions ()
+                    let! check = Checker.check editor.FileName text options
+                    editor.fsErrors <-
+                        if inbox.CurrentQueueLength > 0 then
+                            None
+                        else
+                            let errors = check.CheckResults.Errors
+                            if errors.Length = 0 then None else Some errors
+                    editor.PostJob (fun () ->
+                        editor.Redraw ()
+                    )
+                }
+                |> Async.Start
+            )
     })
 
     let mouseAgent = MailboxProcessor.Start (fun inbox -> async {
@@ -73,13 +60,12 @@ type FarEditor (editor: IEditor, _args) =
 
             match message with
             | Noop -> ()
-
             | Move it ->
                 do! Async.Sleep 400
                 if inbox.CurrentQueueLength > 0 then () else
 
                 let mutable autoTips = editor.fsAutoTips
-                match editor.getMyErrors () with
+                match editor.tryMyErrors () with
                 | None -> ()
                 | Some errors ->
                     let lines =
@@ -103,76 +89,20 @@ type FarEditor (editor: IEditor, _args) =
                     | None -> ()
                     | Some (column, idents) ->
                         editor.PostJob (fun () ->
-                            inbox.Post (Tips {Text = it.Text; Index = it.Index; Column = column; Idents = idents; FileText = editor.GetText ()})
+                            let fileText = editor.GetText ()
+                            async {
+                                let options = editor.getOptions ()
+                                let! check = Checker.check editor.FileName fileText options
+                                let! tip = check.CheckResults.GetToolTipTextAlternate (it.Index + 1, column + 1, it.Text, idents, FSharpTokenTag.Identifier)
+                                let tips = Checker.strTip tip
+                                if tips.Length > 0 && inbox.CurrentQueueLength = 0 then
+                                    editor.PostJob (fun () ->
+                                        showText tips "Tips"
+                                    )
+                            }
+                            |> Async.Start
                         )
-
-            | Tips it ->
-                let options = editor.getOptions ()
-                let check = Checker.check editor.FileName it.FileText options
-                let! tip = check.CheckResults.GetToolTipTextAlternate (it.Index + 1, it.Column + 1, it.Text, it.Idents, FSharpTokenTag.Identifier)
-                let tips = Checker.strTip tip
-                if tips.Length > 0 && inbox.CurrentQueueLength = 0 then
-                    editor.PostJob (fun () ->
-                        showText tips "Tips"
-                    )
     })
-
-(*
-    https://fsharp.github.io/FSharp.Compiler.Service/editor.html#Getting-auto-complete-lists
-    old EditorTests.fs(265) they use [], "" instead of names, so do we.
-    new Use FsAutoComplete way.
-*)
-    let complete () =
-        use progress = new Progress "Checking..."
-
-        // skip out of text
-        let caret = editor.Caret
-        let line = editor.[caret.Y]
-        if caret.X = 0 || caret.X > line.Length then false
-        else
-
-        // skip no solid base
-        //TODO complete parameters -- x (y, [Tab] -- https://fsharp.github.io/FSharp.Compiler.Service/editor.html#Getting-parameter-information
-        let lineStr = line.Text
-        if Char.IsWhiteSpace lineStr.[caret.X - 1] then false
-        else
-
-        // parse
-        let names, residue = Parsing.findLongIdentsAndResidue (caret.X, lineStr)
-
-(*
-    _160922_160602
-    Complete `x.ToString().C` incorrectly gives all globals.
-    But complete `x.ToString().` gives string members.
-    Let's reduce to the working fine case.
-*)
-        let mutable residue2 = residue
-        let mutable colAtEndOfPartialName = caret.X + 1
-        let isDot () =
-            let i = caret.X - 1 - residue.Length
-            i > 0 && lineStr.[i] = '.'
-        if residue.Length > 0 && names.IsEmpty && isDot () then
-            residue2 <- ""
-            colAtEndOfPartialName <- colAtEndOfPartialName - residue.Length
-
-        let options = editor.getOptions ()
-        let file = editor.FileName
-        let text = editor.GetText ()
-
-        let check = Checker.check file text options
-
-        let decs = check.CheckResults.GetDeclarationListInfo (Some check.ParseResults, caret.Y + 1, colAtEndOfPartialName, lineStr, names, residue2, always []) |> Async.RunSynchronously
-
-        let completions =
-            decs.Items
-            |> Seq.map (fun item -> item.Name)
-            |> Seq.filter (fun name -> name.StartsWith residue)
-
-        progress.Done ()
-
-        completeLine editor.Line (caret.X - residue.Length) residue.Length completions
-        editor.Redraw ()
-        true
 
     let postNoop _ =  mouseAgent.Post Noop
 
@@ -186,13 +116,19 @@ type FarEditor (editor: IEditor, _args) =
             editor.KeyDown.Add <| fun e ->
                 match e.Key.VirtualKeyCode with
                 | KeyCode.Tab when e.Key.Is () && not editor.SelectionExists ->
-                     e.Ignore <- complete ()
+                     e.Ignore <- Editor.complete editor
                 | _ -> ()
 
-            editor.Changed.Add <| fun _ ->
-                editor.fsErrors <- None
+            editor.Changed.Add <| fun e ->
+                // We want to keep errors visible, so that after a fixing change we see how they go.
+                // This does not work well on massive changes like copy/paste, delete many lines.
+                // So lets keep errors only when lines change.
+                if e.Kind = EditorChangeKind.LineChanged then
+                    editor.fsChecking <- true
+                else
+                    editor.fsErrors <- None
                 if editor.fsAutoCheck then
-                    checkAgent.Post Check
+                    checkAgent.Post ()
 
             editor.MouseDoubleClick.Add postNoop
             editor.MouseClick.Add postNoop
