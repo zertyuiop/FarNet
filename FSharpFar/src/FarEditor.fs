@@ -26,6 +26,8 @@ type MouseMessage =
 type FarEditor (editor: IEditor, _args) =
     inherit ModuleEditor ()
 
+    let postExn exn = far.PostJob (fun () -> far.ShowError (exn.GetType().Name, exn))
+
     let checkAgent = MailboxProcessor.Start (fun inbox -> async {
         while true do
             do! inbox.Receive ()
@@ -36,20 +38,21 @@ type FarEditor (editor: IEditor, _args) =
 
             editor.PostJob (fun () ->
                 let text = editor.GetText ()
-                async {
-                    let options = editor.getOptions ()
-                    let! check = Checker.check editor.FileName text options
-                    editor.fsErrors <-
-                        if inbox.CurrentQueueLength > 0 then
-                            None
-                        else
-                            let errors = check.CheckResults.Errors
-                            if errors.Length = 0 then None else Some errors
-                    editor.PostJob (fun () ->
-                        editor.Redraw ()
-                    )
-                }
-                |> Async.Start
+                Async.StartWithContinuations (
+                    async {
+                        let options = editor.getOptions ()
+                        let! check = Checker.check editor.FileName text options
+                        editor.fsErrors <-
+                            if inbox.CurrentQueueLength > 0 then
+                                None
+                            else
+                                let errors = check.CheckResults.Errors
+                                if errors.Length = 0 then None else Some errors
+                    },
+                    (fun () -> editor.PostJob (fun () -> editor.Redraw ())),
+                    postExn,
+                    ignore
+                )
             )
     })
 
@@ -80,9 +83,7 @@ type FarEditor (editor: IEditor, _args) =
                     if lines.Length > 0 then
                         autoTips <- false
                         let text = String.Join ("\r", lines)
-                        editor.PostJob (fun () ->
-                            showText text "Errors"
-                        )
+                        editor.PostJob (fun () -> showText text "Errors")
 
                 if autoTips then
                     match Parsing.findLongIdents (it.Column, it.Text) with
@@ -90,17 +91,17 @@ type FarEditor (editor: IEditor, _args) =
                     | Some (column, idents) ->
                         editor.PostJob (fun () ->
                             let fileText = editor.GetText ()
-                            async {
-                                let options = editor.getOptions ()
-                                let! check = Checker.check editor.FileName fileText options
-                                let! tip = check.CheckResults.GetToolTipTextAlternate (it.Index + 1, column + 1, it.Text, idents, FSharpTokenTag.Identifier)
-                                let tips = Checker.strTip tip
-                                if tips.Length > 0 && inbox.CurrentQueueLength = 0 then
-                                    editor.PostJob (fun () ->
-                                        showText tips "Tips"
-                                    )
-                            }
-                            |> Async.Start
+                            Async.StartWithContinuations (
+                                async {
+                                    let options = editor.getOptions ()
+                                    let! check = Checker.check editor.FileName fileText options
+                                    let! tip = check.CheckResults.GetToolTipTextAlternate (it.Index + 1, column + 1, it.Text, idents, FSharpTokenTag.Identifier)
+                                    return Checker.strTip tip
+                                },
+                                (fun tips -> if tips.Length > 0 && inbox.CurrentQueueLength = 0 then editor.PostJob (fun () -> showText tips "Tips")),
+                                postExn,
+                                ignore
+                            )
                         )
     })
 

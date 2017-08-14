@@ -139,13 +139,13 @@ type Session private (configFile) =
             for file in loadFiles do
                 let result, warnings = fsiSession.EvalInteractionNonThrowing (sprintf "#load @\"%s\"" file)
                 for w in warnings do writer.WriteLine (strErrorFull w)
-                match result with ErrorChoice exn -> raise exn | _ -> ()
+                match result with Choice2Of2 exn -> raise exn | _ -> ()
 
             for file in useFiles do
                 let code = File.ReadAllText file
                 let result, warnings = fsiSession.EvalInteractionNonThrowing code
                 for w in warnings do writer.WriteLine (strErrorFull w)
-                match result with ErrorChoice exn -> raise exn | _ -> ()
+                match result with Choice2Of2 exn -> raise exn | _ -> ()
         with exn ->
             fprintfn writer "%A" exn
 
@@ -158,7 +158,7 @@ type Session private (configFile) =
         evalWriter.Writer <- voidWriter
         {
             Warnings = warnings
-            Exception = match result with ErrorChoice exn -> exn | _ -> null
+            Exception = match result with Choice2Of2 exn -> exn | _ -> null
         }
 
     static member TryFind (path) =

@@ -9,8 +9,6 @@ open FarNet
 open System
 open System.IO
 
-let far = Far.Api
-
 /// The local module folder path.
 let farLocalData = far.GetModuleManager("FSharpFar").GetFolderPath (SpecialFolder.LocalData, true)
 

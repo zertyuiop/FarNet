@@ -72,6 +72,7 @@
     <Compile Include="FsAutoComplete\Utils.fs" />
     <Compile Include="FsAutoComplete\TipFormatter.fs" />
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="FarNet.Auto.fs" />
     <Compile Include="ProxyWriter.fs" />
     <Compile Include="Completer.fs" />
     <Compile Include="Kit.fs" />

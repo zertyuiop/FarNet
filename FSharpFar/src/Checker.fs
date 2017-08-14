@@ -64,7 +64,7 @@ let check file text options = async {
     let checkResults =
         match checkAnswer with
         | FSharpCheckFileAnswer.Succeeded x -> x
-        | _ -> failwith "unexpected aborted"
+        | _ -> invalidOp "Unexpected checker abort."
 
     return {
         Checker = checker
