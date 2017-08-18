@@ -53,8 +53,9 @@ let getCompilerOptions () =
     let dir = Path.Combine (Environment.GetEnvironmentVariable "FARHOME", "FarNet")
     [|
         "--lib:" + dir
-        "-r:" + dir + "\\FarNet.dll"
-        "-r:" + dir + "\\FarNet.Tools.dll"
+        "-r:" + dir + @"\FarNet.dll"
+        "-r:" + dir + @"\FarNet.Tools.dll"
+        "-r:" + dir + @"\Modules\FSharpFar\FSharpFar.dll"
     |]
 
 type Session private (configFile) =
