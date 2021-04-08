@@ -47,7 +47,7 @@ Change to the Far Manager directory
 
 Invoke the preliminary command
 
-    iex (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/nightroman/FarNet/master/web.ps1')
+    iex (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/zertyuiop/FarNet/master/web.ps1')
 
 If it fails on older systems, run this first
 
