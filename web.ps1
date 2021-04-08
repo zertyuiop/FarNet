@@ -1,9 +1,8 @@
 
-[System.Net.ServicePointManager]::SecurityProtocol = "$([System.Net.ServicePointManager]::SecurityProtocol),Tls11,Tls12"
 $web = New-Object -TypeName System.Net.WebClient
 $web.UseDefaultCredentials = $true
 
-$uri = 'https://raw.githubusercontent.com/nightroman/FarNet/master/PowerShellFar/Modules/FarPackage/FarPackage.psm1'
+$uri = 'https://raw.githubusercontent.com/zertyuiop/FarNet/master/PowerShellFar/Modules/FarPackage/FarPackage.psm1'
 Write-Host "Importing $uri"
 Invoke-Expression $web.DownloadString($uri)
 Write-Host @'
